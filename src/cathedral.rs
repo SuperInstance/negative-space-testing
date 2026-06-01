@@ -4,6 +4,27 @@
 //! It is the space the stone makes room for." A flying buttress is beautiful because
 //! it is the shape that remains when you remove every stone that isn't working.
 //!
+//! # What This Actually Does
+//!
+//! Unlike simple boolean assertions, `CathedralProbe` provides **structural verification**
+//! of inter-component contracts. Each probe is a named, attributed relationship test:
+//!
+//! - **Named** — every probe has a `relationship_name` so failures are immediately diagnostic
+//! - **Attributed** — every probe records its `participants` (which components are involved)
+//! - **Described** — every probe has a human-readable `description` of the expected invariant
+//! - **Aggregated** — `ProbeResult` gives you `soundness_ratio()`, `violation_count()`, and
+//!   a structured list of violations, not just pass/fail
+//!
+//! This is more than `assert!(condition)` — it's an **auditable contract system** that
+//! answers: "which relationships broke, between which components, and why?"
+//!
+//! # Use Cases
+//!
+//! - **API contract testing**: verify cache/database coherence, serializer round-trips, etc.
+//! - **Microservice boundary verification**: check that inter-service invariants hold
+//! - **Integration testing**: verify that wiring between modules produces correct relationships
+//! - **Architecture fitness**: continuously verify that structural invariants hold as code evolves
+//!
 //! Test the space between components. Verify that the relationships are sound.
 
 /// A violation of a structural relationship.
