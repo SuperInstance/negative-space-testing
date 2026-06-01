@@ -1,202 +1,202 @@
 # negative-space-testing
 
-> *"The meteorologist knows the cloud names too quickly — over-specification kills imagination."*
+**Test what your code doesn't do.**
 
-A Rust testing framework where you define what your system **does NOT do**, and the framework verifies the negative space.
+A testing framework where you define forbidden behaviors — things your code must *never* produce — and the framework verifies the negative space. Traditional tests specify what code *should* do. This catches what slips through the cracks.
 
----
+```toml
+[dependencies]
+negative-space-testing = "0.1"
+```
 
-## Philosophy
-
-The child looks at a cumulus cloud and sees a dragon. The meteorologist looks at the same cloud and sees *cumulus mediocris* — and in naming it, loses the dragon. Over-specification fills the negative space where imagination (and bugs) live.
-
-Traditional testing asks: *does the system produce the right output?*  
-Negative-space testing asks: *does the system avoid the wrong outputs?*
-
-These are not the same question. The Jacquard card encodes its pattern in holes — absences where the hook must fall through. The pattern lives in what is missing. This framework tests the missing.
-
-Five components, each embodying a different facet of this insight:
-
----
-
-## Components
-
-### `NegativeTest` — the Jacquard card
-
-Define constraints on what code should **not** produce. Like the holes in the Jacquard card: specify the absences, and the positive space defines itself.
+## 30-Second Example
 
 ```rust
 use negative_space_testing::NegativeTest;
 
-struct NoPanic;
+let test = NegativeTest::<i32>::new()
+    .forbid("negative output", |x| *x < 0)
+    .forbid("overflow (>1000)", |x| *x > 1000);
 
-impl NegativeTest for NoPanic {
-    type Output = Result<i32, String>;
-    fn excludes(&self, v: &Result<i32, String>) -> bool { v.is_err() }
-    fn description(&self) -> &str { "must not return an error" }
+let result = test.check(&42);
+assert!(result.is_clean());
+
+let bad = test.check(&-1);
+assert!(!bad.is_clean()); // Caught!
+```
+
+## What It Does
+
+| Module | What It Tests |
+|--------|--------------|
+| **NegativeTest** | Define behaviors your code must never produce |
+| **SpaceMap** | Map the full output space, flag intrusions into forbidden zones |
+| **ConservationChecker** | Track quantities that should never decrease (energy, budget, quota) |
+| **CracklePhase** | Deferred assertions that check patterns after all values are collected |
+| **CathedralProbe** | Spectral analysis of your component graph — is the *space between* components healthy? |
+
+## Real-World Use Cases
+
+### API Response Validation
+```rust
+use negative_space_testing::NegativeTest;
+
+let api_test = NegativeTest::<Response>::new()
+    .forbid("internal error exposed", |r| r.body.contains("stack trace"))
+    .forbid("auth token in body", |r| r.body.contains("Bearer "))
+    .forbid("missing content-type", |r| !r.headers.contains_key("content-type"));
+
+for response in api_responses {
+    let result = api_test.check(&response);
+    if !result.is_clean() {
+        eprintln!("FORBIDDEN: {:?}", result.violations);
+    }
 }
 ```
 
----
-
-### `SpaceMap` — the output landscape
-
-Maps the full output space of a system. Add samples, add exclusions, verify that nothing landed in the negative space. The remaining open space is where your system is free to be creative.
-
-```rust
-use negative_space_testing::SpaceMap;
-
-let mut map: SpaceMap<f64> = SpaceMap::new();
-map.add_samples(predictions.iter().copied());
-map.exclude_fn("predictions below 0", |&p| p < 0.0);
-map.exclude_fn("predictions above 1", |&p| p > 1.0);
-
-let result = map.verify();
-assert!(result.is_clean());
-println!("openness: {:.0}%", result.openness() * 100.0);
-```
-
-`SpaceResult::openness()` tells you what fraction of samples fell in the positive (allowed) space — a measure of how much creative room your system has.
-
----
-
-### `ConservationChecker` — the grand unification
-
-Five hundred glazes revealed they were, at base, one mineral. The conserved quantity beneath all variation. `ConservationChecker` watches for quantities that must not be lost: accuracy, entropy, attention, coverage.
-
+### Budget Tracking
 ```rust
 use negative_space_testing::ConservationChecker;
 
-let mut checker = ConservationChecker::new();
-checker.track_non_decreasing("test_coverage", 0.005); // tolerance of 0.5%
-checker.track_non_increasing("error_rate", 0.001);
+let mut budget = ConservationChecker::new();
+budget.register("monthly_spend", 1000.0, 1.0);  // $1000 budget, $1 tolerance
 
-for epoch in &training_results {
-    checker.record("test_coverage", epoch.coverage);
-    checker.record("error_rate", epoch.error_rate);
+for transaction in transactions {
+    budget.update("monthly_spend", budget.current["monthly_spend"] - transaction.amount);
+    if !budget.is_conserved("monthly_spend") {
+        alert("Budget exceeded!");
+    }
 }
-
-assert!(checker.check().is_conserved(), "a conserved quantity regressed");
 ```
 
-Three conservation laws:
-- `track_non_decreasing` — quantity must never decrease (e.g., entropy, accuracy)
-- `track_non_increasing` — quantity must never increase (e.g., error rate)
-- `track_conserved` — quantity must stay within tolerance of its initial value
-
----
-
-### `CracklePhase` — the cooling
-
-*The glaze does not crack in the heat. The crack comes in the cooling.*
-
-Assertions deferred during the "firing" phase (hot computation) are evaluated only after the system settles. Some cracks are failures. Some are beautiful — *kintsugi*, the crack honored rather than hidden.
-
-```rust
-use negative_space_testing::CracklePhase;
-
-let mut phase = CracklePhase::new();
-
-// During the "firing" phase — defer assertions
-let final_loss = run_training(); // expensive computation
-
-phase.defer("loss below threshold", move || final_loss < 1.0);
-
-// Expected to crack — we know this model isn't perfect yet
-phase.defer_crack("model not production-ready", move || final_loss < 0.01);
-
-// During the "cooling" phase — evaluate everything
-let result = phase.cool();
-assert!(result.all_acceptable());
-println!("beauty ratio: {:.0}%", result.beauty_ratio() * 100.0);
-```
-
-`CrackleOutcome` variants:
-- `Smooth` — passed as expected
-- `Craze` — failed unexpectedly (a defect)
-- `Kintsugi` — failed as expected (beautiful, honored)
-- `UnexpectedSmooth` — expected to fail but passed (interesting!)
-
----
-
-### `CathedralProbe` — the space between stones
-
-*The cathedral is not the stone. It is the space the stone makes room for.*
-
-A `CathedralProbe` does not test whether component A works or component B works. It tests whether the **relationship** between A and B has the right shape — whether the flying buttress resolves the lateral thrust.
-
+### Microservice Topology Health
 ```rust
 use negative_space_testing::CathedralProbe;
 
-let mut probe = CathedralProbe::new();
+let mut probe = CathedralProbe::new(vec!["auth", "api", "db", "cache"]);
+probe.connect("auth", "api", 1.0);
+probe.connect("api", "db", 1.0);
+probe.connect("api", "cache", 0.5);
 
-probe.probe(
-    "cache-database coherence",
-    vec!["cache", "database"],
-    "cache value must match authoritative database value",
-    move || cache.get("user:42") == Some(&db.fetch("user:42")),
-);
-
-probe.probe(
-    "serializer round-trip",
-    vec!["serializer", "deserializer"],
-    "deserialize(serialize(x)) == x",
-    move || deserialize(&serialize(test_value)) == Some(test_value),
-);
-
-assert!(probe.verify().all_sound());
+let fiedler = probe.fiedler_value(); // Higher = better connected
+println!("Topology health: {} ({})", fiedler, 
+    if probe.is_healthy(0.1) { "HEALTHY" } else { "FRAGMENTED" });
 ```
 
----
+## API Reference
 
-## Putting it together
+### `NegativeTest<T>`
+
+Define forbidden behaviors for type `T`.
 
 ```rust
-use negative_space_testing::{SpaceMap, ConservationChecker, CracklePhase, CathedralProbe};
+let test = NegativeTest::<Vec<i32>>::new()
+    .forbid("empty", |v| v.is_empty())
+    .forbid("unsorted", |v| v.windows(2).any(|w| w[0] > w[1]));
 
-// 1. Map what the system must NOT produce
-let mut space: SpaceMap<Response> = SpaceMap::new();
-space.add_samples(responses);
-space.exclude_fn("no 5xx errors", |r| r.status >= 500);
-space.exclude_fn("no empty bodies", |r| r.body.is_empty());
-assert!(space.verify().is_clean());
+// Check single value
+let result = test.check(&vec![1, 2, 3]);
+assert!(result.is_clean());
+assert_eq!(result.violations, vec![]);
 
-// 2. Check conserved quantities
-let mut conservation = ConservationChecker::new();
-conservation.track_non_decreasing("p99_latency_headroom", 1.0);
-for &measurement in &latency_samples { conservation.record("p99_latency_headroom", measurement); }
-assert!(conservation.check().is_conserved());
-
-// 3. Defer post-deployment assertions
-let mut phase = CracklePhase::new();
-phase.defer("cache hit rate acceptable", move || cache_hit_rate > 0.8);
-phase.defer_crack("cache not fully warm yet", move || cache_hit_rate > 0.99);
-assert!(phase.cool().all_acceptable());
-
-// 4. Verify inter-component relationships
-let mut cathedral = CathedralProbe::new();
-cathedral.probe("auth-session contract", vec!["auth", "session"], "valid auth produces valid session", move || {
-    let token = auth.login("user", "pass");
-    session.validate(&token)
-});
-assert!(cathedral.verify().all_sound());
+// Check multiple values
+let batch = test.check_all(&[vec![], vec![1, 3, 2], vec![1, 2, 3]]);
+assert_eq!(batch.total_checked, 3);
+assert_eq!(batch.clean_count, 1);  // Only the sorted non-empty one
 ```
 
----
+### `SpaceMap<K, V>`
 
-## Installation
+Map the full output space with forbidden zones.
 
-```toml
-[dev-dependencies]
-negative-space-testing = "0.1"
+```rust
+let mut map = SpaceMap::<&str, Data>::new();
+map.forbid("admin_panel");    // Must never appear in output
+map.forbid("debug_endpoint");
+map.occupy("user_profile", data);
+map.occupy("admin_panel", leaked);  // Oops!
+
+assert_eq!(map.check_intrusions(), vec!["admin_panel"]);
+assert!(map.negative_space_ratio() < 1.0);  // Compromised!
 ```
 
----
+### `ConservationChecker`
+
+Track quantities that must not decrease (one-sided conservation).
+
+```rust
+let mut checker = ConservationChecker::new();
+checker.register("energy", 100.0, 0.5);
+checker.register("token_budget", 10000.0, 10.0);
+
+checker.update("energy", 99.8);       // Fine — within tolerance
+checker.update("token_budget", 12000.0); // Fine — increase allowed
+
+assert!(checker.is_conserved("energy"));
+assert!(checker.violations().is_empty());
+
+checker.snapshot();  // Record history for analysis
+```
+
+### `CracklePhase<T>`
+
+Collect values during execution, then check patterns during a "cooling" phase.
+
+```rust
+let mut phase = CracklePhase::<f64>::new()
+    .on_cool("no negative variance", |vals| {
+        let mean = vals.iter().sum::<f64>() / vals.len() as f64;
+        vals.iter().all(|v| v >= &mean * 0.5)
+    })
+    .on_cool("reasonable spread", |vals| {
+        vals.iter().sum::<f64>() < 10000.0
+    });
+
+for sample in sensor_data {
+    phase.fire(sample);
+}
+
+let result = phase.cool();
+if !result.is_sound() {
+    eprintln!("Pattern violations: {:?}", result.violations);
+}
+```
+
+### `CathedralProbe`
+
+Spectral analysis of component connectivity (Laplacian eigenvalues).
+
+```rust
+let mut probe = CathedralProbe::new(vec!["web", "api", "db", "queue"]);
+probe.connect("web", "api", 1.0);
+probe.connect("api", "db", 1.0);
+probe.connect("api", "queue", 0.5);
+
+println!("Fiedler value: {}", probe.fiedler_value());
+println!("Cheeger constant: {}", probe.cheeger_constant());
+println!("Spectrum: {:?}", probe.spectrum());
+```
+
+## How It Works
+
+1. **NegativeTest** registers forbidden predicates and checks values against them. Unlike property testing, you specify what's *wrong*, not what's *right*.
+
+2. **SpaceMap** builds a two-zone map (occupied vs. forbidden) and detects intrusions in O(1) lookup time.
+
+3. **ConservationChecker** uses one-sided conservation: increases are always allowed, only decreases beyond tolerance trigger violations. This matches real-world invariants (budget, energy, quota).
+
+4. **CracklePhase** accumulates values during "firing" and runs assertions during "cooling" — enabling pattern checks that require seeing the full dataset.
+
+5. **CathedralProbe** computes the graph Laplacian of your component topology and extracts eigenvalues (spectrum), Fiedler value (connectivity), and Cheeger constant (bottleneck detection).
+
+## Philosophy
+
+*"The meteorologist knows the name of a cloud too quickly — over-specification kills imagination."*
+
+Traditional testing over-specifies: "given input X, output Y." This misses everything in the negative space — the behaviors you didn't think to test for. This crate inverts the lens: define what's forbidden, and anything not forbidden is allowed. The space between your tests IS the product.
+
+Inspired by the [Ford Creative Wheel](https://github.com/SuperInstance/AI-Writings/tree/main/ford-creative-wheel) experiments in the SuperInstance ecosystem.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
----
-
-*"The walls aren't the cage. They're the dance floor. The silence between notes isn't absence. It's where the music lives."*
+MIT
