@@ -1,0 +1,10 @@
+[package]
+name = "negative-space-testing"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "A testing framework where you define what your system does NOT do — the pattern lives in the holes"
+repository = "https://github.com/SuperInstance/negative-space-testing"
+readme = "README.md"
+keywords = ["testing", "negative-space", "constraints", "deferred", "invariants"]
+categories = ["development-tools::testing"]
