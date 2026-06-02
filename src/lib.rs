@@ -16,6 +16,9 @@
 
 #![deny(unsafe_code)]
 
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
+
 pub mod topology;
 
 use std::collections::{HashMap, HashSet};
@@ -60,6 +63,7 @@ impl<T> Forbidden<T> {
 
 /// Result of checking a value against a set of forbidden behaviors
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NegativeResult {
     /// Which forbidden behaviors were triggered
     pub violations: Vec<String>,
@@ -169,6 +173,15 @@ impl<T> Default for NegativeTest<T> {
 
 /// A map of the full output space, showing what's occupied and what's negative space
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(serialize = "K: Serialize + Eq + Hash, V: Serialize"))
+)]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(deserialize = "K: Deserialize<'de> + Eq + Hash, V: Deserialize<'de>"))
+)]
 pub struct SpaceMap<K, V> {
     /// Occupied regions of the space
     occupied: HashMap<K, V>,
@@ -245,8 +258,8 @@ where
 
 // ─── ConservationChecker ─────────────────────────────────────────────
 
-/// A quantity that should be conserved across operations
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ConservedQuantity {
     pub name: String,
     pub value: f64,
@@ -436,8 +449,8 @@ impl<T> Default for CracklePhase<T> {
     }
 }
 
-/// Result of a cooling phase
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CrackleResult {
     pub total_values: usize,
     pub assertion_count: usize,

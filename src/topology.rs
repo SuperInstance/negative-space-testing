@@ -18,6 +18,9 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
+
 // ─── SimplicialComplex ───────────────────────────────────────────────
 
 /// A simplicial complex built from test execution traces.
@@ -27,6 +30,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 ///
 /// Reference: Hatcher (2002), §2.1, "Simplicial and Singular Homology"
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(bound = ""))]
 pub struct SimplicialComplex {
     /// All simplices, keyed by dimension. Each simplex is a sorted set of vertex names.
     /// dimension 0 = vertices, dimension 1 = edges, dimension 2 = triangles, etc.
@@ -505,6 +510,7 @@ impl SimplicialComplex {
 ///
 /// Reference: Edelsbrunner & Harer (2010), "Computational Topology", Chapter VII
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PersistencePoint {
     /// The filtration value at which this feature appears.
     pub birth: f64,

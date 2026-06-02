@@ -1,9 +1,16 @@
 [package]
 name = "negative-space-testing"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "A testing framework where you define what code DOES NOT do — inspired by the meteorologist's blindness"
 license = "MIT"
 repository = "https://github.com/SuperInstance/negative-space-testing"
 keywords = ["testing", "negative-space", "constraints", "property-testing"]
 categories = ["development-tools::testing"]
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
